@@ -1,12 +1,5 @@
-/* eslint-disable camelcase */
-import fs from "fs";
-import { URL } from "url";
-import querystring from "querystring";
-// import crypto from "crypto";
-
-import jwt from "jsonwebtoken";
 import createJwksClient, { JwksClient, SigningKey } from "jwks-rsa";
-import axios from "axios";
+import jwt from "@tsndr/cloudflare-worker-jwt";
 
 export interface AppleSignInOptions {
   /**
@@ -151,15 +144,6 @@ export class AppleSignIn {
     let privateKey: string | undefined;
     if (Object.prototype.hasOwnProperty.call(options, "privateKey")) {
       privateKey = options.privateKey;
-    } else if (Object.prototype.hasOwnProperty.call(options, "privateKeyPath")) {
-      if (!options?.privateKeyPath) {
-        throw new Error("privateKeyPath is empty");
-      }
-      if (!fs.existsSync(options.privateKeyPath)) {
-        throw new Error("Private key file for given path doesn't exist");
-      }
-
-      privateKey = fs.readFileSync(options.privateKeyPath, "utf-8");
     }
     if (!privateKey) {
       throw new Error("Empty private key from given input method");
@@ -252,30 +236,25 @@ export class AppleSignIn {
     if (!clientSecret) throw new Error("clientSecret is empty");
     if (!code) throw new Error("code is empty");
 
-    let results;
-    try {
-      const response = await axios("https://appleid.apple.com/auth/token", {
-        method: "post",
-        data: querystring.stringify({
-          client_id: this.clientId,
-          client_secret: clientSecret,
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: options?.redirectUri,
-        }),
-      });
-      results = response.data as AccessTokenResponse;
-    } catch (err) {
-      const statusCode = err?.response?.status;
-      const reason = err?.response?.data?.error;
-      if (reason) {
-        throw new Error(`Authorization request failed with reason "${reason}" and status code "${statusCode}"`);
-      } else {
-        throw new Error(`Authorization request failed with unknown reason and status code "${statusCode}"`);
-      }
-    }
+    const response = await fetch("https://appleid.apple.com/auth/token", {
+      method: "POST",
+      body: Object.entries({
+        client_id: this.clientId,
+        client_secret: clientSecret,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: options?.redirectUri,
+      }).map(([ key, value ]) => [ key, encodeURIComponent(value ?? "") ].join('=')).join('&')
+    });
 
-    return results;
+    if(!response.ok) {
+      const statusCode = response?.status;
+      const text = await response.text();
+
+      throw new Error(`Authorization request failed with reason "${text}" and status code "${statusCode}"`);
+    }
+      
+    return await response.json();
   }
 
   async refreshAuthorizationToken(
@@ -291,32 +270,27 @@ export class AppleSignIn {
     if (!clientSecret) throw new Error("clientSecret is empty");
     if (!refreshToken) throw new Error("refreshToken is empty");
 
-    let results;
-    try {
-      const response = await axios("https://appleid.apple.com/auth/token", {
-        method: "post",
-        data: querystring.stringify({
-          client_id: this.clientId,
-          client_secret: clientSecret,
-          grant_type: "refresh_token",
-          refresh_token: refreshToken,
-        }),
-      });
-      results = response.data as RefreshTokenResponse;
-    } catch (err) {
-      const statusCode = err?.response?.status;
-      const reason = err?.response?.data?.error;
-      if (reason) {
-        throw new Error(`Authorization request failed with reason "${reason}" and status code "${statusCode}"`);
-      } else {
-        throw new Error(`Authorization request failed with unknown reason and status code "${statusCode}"`);
-      }
+    const response = await fetch("https://appleid.apple.com/auth/token", {
+      method: "POST",
+      body: Object.entries({
+        client_id: this.clientId,
+        client_secret: clientSecret,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }).map(([ key, value ]) => [ key, encodeURIComponent(value ?? "") ].join('=')).join('&'),
+    });
+
+    if(!response.ok) {
+      const statusCode = response?.status;
+      const text = await response.text();
+
+      throw new Error(`Authorization request failed with reason "${text}" and status code "${statusCode}"`);
     }
 
-    return results;
+    return response.json();
   }
 
-  createClientSecret(options: {
+  async createClientSecret(options: {
     /**
      * The expiration duration for registered claim key in seconds.
      * The value of which must not be greater than 15777000 (6 months in seconds) from the Current Unix Time on the
@@ -325,7 +299,7 @@ export class AppleSignIn {
      * @default 15777000
      */
     expirationDuration?: number;
-  }): string {
+  }): Promise<string> {
     /**
      * As per apple docs the max duration a client secret claim can last - 6 months in secods
      */
@@ -345,17 +319,20 @@ export class AppleSignIn {
       aud: "https://appleid.apple.com",
       sub: this.clientId,
     };
-    const header = {
-      alg: "ES256",
-      kid: this.keyIdentifier,
-    };
-    return jwt.sign(claims, this.privateKey, { algorithm: "ES256", header });
+
+    return await jwt.sign<{}, { kid?: string }>(claims, this.privateKey, {
+      algorithm: "ES256",
+      header: {
+        alg: "ES256",
+        kid: this.keyIdentifier
+      }
+    });
   }
 
   getAppleSigningKey(kid: string): Promise<SigningKey> {
     return new Promise((resolve, reject) => {
       this.jwksClient.getSigningKey(kid, (err, key) => {
-        if (err) {
+        if (err || key === undefined) {
           reject(err);
         } else {
           resolve(key);
@@ -393,7 +370,7 @@ export class AppleSignIn {
      * Decode the jwt into header and payload so we can find it's appropriate apple public key
      * https://github.com/auth0/node-jsonwebtoken/blob/master/decode.js#L22-L27
      */
-    const decodedIdToken = jwt.decode(idToken, { complete: true });
+    const decodedIdToken = jwt.decode<AppleIdTokenType, { kid?: string }>(idToken);
 
     // We expect that it returns an object, if we get anything else then throw error
     if (!(decodedIdToken !== null && typeof decodedIdToken === "object")) {
@@ -410,14 +387,28 @@ export class AppleSignIn {
     const key = await this.getAppleSigningKey(kid);
 
     // Offload all jwt verification to do the heavy job, we just make sure to pass in needed options
-    const jwtClaims = jwt.verify(idToken, key.getPublicKey(), {
+    const jwtClaims = await jwt.verify(idToken, key.getPublicKey(), {
+      algorithm: alg
+    });
+
+    if(jwtClaims && decodedIdToken.payload
+      /*&& decodedIdToken.payload?.iss === "https://appleid.apple.com"
+      && decodedIdToken.payload.aud === this.clientId
+      && decodedIdToken.header?.alg === alg
+      && decodedIdToken.payload.sub === options.subject*/) {
+        return decodedIdToken.payload;
+      }
+
+    throw new Error("Validation failed.");
+    
+    /*, {
       issuer: "https://appleid.apple.com",
       audience: this.clientId,
       algorithms: [alg],
       nonce: options?.nonce,
       ignoreExpiration: options?.ignoreExpiration,
       subject: options?.subject,
-    }) as AppleIdTokenType;
+    })*/// as AppleIdTokenType;
 
     // TODO: possibly implementation of this, as currently the last character is missmatching
     // https://sarunw.com/posts/sign-in-with-apple-4/#authorization-code-(code)-validation
@@ -430,7 +421,7 @@ export class AppleSignIn {
     //   }
     // }
 
-    return jwtClaims;
+    //return jwtClaims;
   }
 }
 export default AppleSignIn;

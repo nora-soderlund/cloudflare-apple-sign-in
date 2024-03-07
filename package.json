@@ -1,29 +1,14 @@
 {
-  "name": "apple-sign-in-rest",
-  "version": "1.0.3",
-  "description": "Hopefully your go-to library for implementing Sign In With Apple in Node.js",
-  "main": "lib/AppleSignIn.js",
-  "types": "lib/AppleSignIn.d.ts",
+  "name": "cloudflare-apple-sign-in",
+  "version": "1.0.0",
+  "description": "A forked Apple sign-in REST API implementation adapted for Cloudflare Workers.",
+  "main": "build/AppleSignIn.js",
+  "type": "module",
   "files": [
-    "lib"
+    "build"
   ],
-  "engines": {
-    "node": ">=10"
-  },
   "scripts": {
-    "build": "rm -rf ./lib && tsc --declarationDir lib --outDir lib",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "lint": "tsc --noEmit && eslint 'src/**/*.{js,ts}'",
-    "format": "eslint 'src/**/*.{js,ts}' --fix",
-    "docs": "ts-node ./scripts/build-docs-if-needed.ts",
-    "docs:clear": "rm -rf ./docs",
-    "docs:generate": "typedoc --plugin none --theme minimal node_modules/typedoc-neo-theme/bin/default --out ./docs/ ./src/AppleSignIn.ts --readme none --gitRevision master",
-    "docs:generate-markdown-unused": "typedoc --plugin typedoc-plugin-markdown --out ./docs/ ./src/apple-sign-in.ts --readme none",
-    "docs:concate-unused": "npx concat-md --decrease-title-levels --dir-name-as-title docs > README.md",
-    "docs:serve": "npm run docs && npx http-server ./docs",
-    "docs:pre-commit": "DOCS_COMMIT=true npm run docs",
-    "prepublishOnly": "npm run lint -- --quiet && npm run test && npm run build"
+    "build": "rm -rf ./lib && tsc --declarationDir lib --outDir lib"
   },
   "keywords": [
     "signin",
@@ -63,17 +48,8 @@
     "url": "https://github.com/renarsvilnis/apple-sign-in-rest/issues"
   },
   "license": "MIT",
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run lint -- --quiet && npm run test && npm run docs:pre-commit"
-    }
-  },
-  "dependencies": {
-    "axios": "^0.21.1",
-    "jsonwebtoken": "^8.5.1",
-    "jwks-rsa": "^1.12.1"
-  },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240222.0",
     "@types/jest": "26.0.19",
     "@types/jsonwebtoken": "8.5.0",
     "@types/node": "14.14.20",
@@ -93,6 +69,10 @@
     "ts-jest": "26.4.4",
     "ts-node": "9.1.1",
     "typedoc": "0.20.13",
-    "typescript": "4.1.3"
+    "typescript": "5.4.2"
+  },
+  "dependencies": {
+    "@tsndr/cloudflare-worker-jwt": "^2.5.2",
+    "jwks-rsa": "^3.1.0"
   }
 }
