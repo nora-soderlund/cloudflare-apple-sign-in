@@ -1,6 +1,6 @@
 {
   "name": "cloudflare-apple-sign-in",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A forked Apple sign-in REST API implementation adapted for Cloudflare Workers.",
   "main": "build/AppleSignIn.js",
   "type": "module",
@@ -54,6 +54,6 @@
   },
   "dependencies": {
     "@tsndr/cloudflare-worker-jwt": "^2.5.2",
-    "jwks-rsa": "^3.1.0"
+    "@nora-soderlund/jwks-rsa": "^3.1.0"
   }
 }

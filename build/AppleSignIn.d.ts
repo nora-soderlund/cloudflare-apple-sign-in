@@ -1,4 +1,4 @@
-import { SigningKey } from "jwks-rsa";
+import { SigningKey } from "@nora-soderlund/jwks-rsa";
 export interface AppleSignInOptions {
     /**
      * Apple Service ID.

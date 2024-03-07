@@ -1,4 +1,4 @@
-import createJwksClient, { JwksClient, SigningKey } from "jwks-rsa";
+import createJwksClient, { JwksClient, SigningKey } from "@nora-soderlund/jwks-rsa";
 import jwt from "@tsndr/cloudflare-worker-jwt";
 
 export interface AppleSignInOptions {
