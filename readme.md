@@ -1,23 +1,17 @@
-# `apple-sign-in-rest`
+# `cloudflare-apple-sign-in`
 
-[![NPM](https://nodei.co/npm/apple-sign-in-rest.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/apple-sign-in-rest/)
-
-[![renarsvilnis](https://circleci.com/gh/renarsvilnis/apple-sign-in-rest.svg?style=svg)](https://app.circleci.com/pipelines/github/renarsvilnis/apple-sign-in-rest)
-
-
-Hopefully your go-to library for implementing [_Sign In With Apple Rest API_](https://developer.apple.com/documentation/sign_in_with_apple) in Node.js.
+A library for implementing [_Sign In With Apple Rest API_](https://developer.apple.com/documentation/sign_in_with_apple) in Cloudflare Workers. Forked from [renarsvilnis/apple-sign-in-rest](https://github.com/renarsvilnis/apple-sign-in-rest)
 
 > See [comparison table](https://github.com/renarsvilnis/apple-sign-in-rest#comparison-to-other-apple-sign-in-libraries) why you should choose `apple-sign-in-rest` over other `apple-xxx` package.
 
-Supports Node.js `>= 10.x.x`
+Supports Cloudflare Workers runtime.
 
 ## Installation
 
-Install the module using [npm](http://npmjs.com):
+Install the package:
 
 ```bash
-npm install --save apple-sign-in-rest
-yarn add apple-sign-in-rest
+npm install cloudflare-apple-sign-in
 ```
 
 ## Documentation
@@ -67,9 +61,7 @@ const appleSignIn = new AppleSignIn({
   clientId: "com.my-company.my-app",
   teamId: "5B645323E8",
   keyIdentifier: "U3B842SVGC",
-  privateKey: "-----BEGIN PRIVATE KEY-----\nMIGTAgEHIHMJKJyqGSM32AgEGC...",
-  // or instead of privateKey use privateKeyPath to read key from file
-  privateKeyPath: '/Users/arnold/my-project/credentials/AuthKey.p8'
+  privateKey: "-----BEGIN PRIVATE KEY-----\nMIGTAgEHIHMJKJyqGSM32AgEGC..."
 })
 ```
 
