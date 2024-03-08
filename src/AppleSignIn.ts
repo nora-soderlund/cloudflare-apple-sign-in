@@ -1,4 +1,3 @@
-import createJwksClient, { JwksClient, SigningKey } from "@nora-soderlund/jwks-rsa";
 import jwt from "@tsndr/cloudflare-worker-jwt";
 
 export interface AppleSignInOptions {
@@ -130,8 +129,6 @@ export class AppleSignIn {
   private keyIdentifier: string;
   private privateKey: string;
 
-  private jwksClient: JwksClient;
-
   constructor(options: AppleSignInOptions) {
     if (!options?.clientId) throw new Error("clientId is empty");
     if (!options?.teamId) throw new Error("teamId is empty");
@@ -149,14 +146,6 @@ export class AppleSignIn {
       throw new Error("Empty private key from given input method");
     }
     this.privateKey = privateKey;
-
-    /**
-     * Create jwks instance that caches 5 kid's up to 10 minutes to reduce amount calls to apple auth keys endpoint.
-     * @link https://github.com/auth0/node-jwks-rsa#caching
-     */
-    this.jwksClient = createJwksClient({
-      jwksUri: "https://appleid.apple.com/auth/keys",
-    });
   }
 
   /**
@@ -238,6 +227,9 @@ export class AppleSignIn {
 
     const response = await fetch("https://appleid.apple.com/auth/token", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
       body: Object.entries({
         client_id: this.clientId,
         client_secret: clientSecret,
@@ -272,6 +264,9 @@ export class AppleSignIn {
 
     const response = await fetch("https://appleid.apple.com/auth/token", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
       body: Object.entries({
         client_id: this.clientId,
         client_secret: clientSecret,
@@ -329,16 +324,25 @@ export class AppleSignIn {
     });
   }
 
-  getAppleSigningKey(kid: string): Promise<SigningKey> {
-    return new Promise((resolve, reject) => {
-      this.jwksClient.getSigningKey(kid, (err, key) => {
-        if (err || key === undefined) {
-          reject(err);
-        } else {
-          resolve(key);
+  async getAppleSigningKey(kid: string): Promise<JsonWebKey> {
+    const jwksUri = "https://appleid.apple.com/auth/keys";
+  
+    return await fetch(jwksUri)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch JWKS: ${response.statusText}`);
         }
+        return response.json();
+      })
+      .then((jwks: any) => {
+        const key = jwks.keys.find((k: any) => k.kid === kid);
+        
+        if (!key) {
+          throw new Error(`Key with kid ${kid} not found in JWKS`);
+        }
+        
+        return key;
       });
-    });
   }
 
   /**
@@ -387,7 +391,7 @@ export class AppleSignIn {
     const key = await this.getAppleSigningKey(kid);
 
     // Offload all jwt verification to do the heavy job, we just make sure to pass in needed options
-    const jwtClaims = await jwt.verify(idToken, key.getPublicKey(), {
+    const jwtClaims = await jwt.verify(idToken, key, {
       algorithm: alg
     });
 

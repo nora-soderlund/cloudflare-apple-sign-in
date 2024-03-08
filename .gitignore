@@ -182,4 +182,4 @@ $RECYCLE.BIN/
 
 ### Project specific
 # Typescript build location
-lib
+build
