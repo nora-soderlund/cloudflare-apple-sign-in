@@ -41,10 +41,13 @@ Here are some usefull links to get started with Sign In with Apple:
 Compared to other libraries `apple-sign-in-rest` chooses to create an instance with credentials instead of passing same credentials to functions on each call. This allows the library to validate them once and create apple public key cache per instance.
 
 ```javascript
-// Using modules
-import {AppleSignIn} from 'apple-sign-in-rest';
-// or if using common.js
-const {AppleSignIn} = require("apple-sign-in-rest");
+import {AppleSignIn} from 'cloudflare-apple-sign-in';
+
+interface Env {
+  APPLE_TEAM_ID: string;
+  APPLE_KEY_ID: string;
+  APPLE_PRIVATE_KEY: string;
+}
 
 /**
  * See docs for full list of options and descriptions:
@@ -59,9 +62,9 @@ const appleSignIn = new AppleSignIn({
    *
    */
   clientId: "com.my-company.my-app",
-  teamId: "5B645323E8",
-  keyIdentifier: "U3B842SVGC",
-  privateKey: "-----BEGIN PRIVATE KEY-----\nMIGTAgEHIHMJKJyqGSM32AgEGC..."
+  teamId: env.APPLE_TEAM_ID, // "5B645323E8"
+  keyIdentifier: env.APPLE_KEY_ID, // "U3B842SVGC"
+  privateKey: env.APPLE_PRIVATE_KEY // "-----BEGIN PRIVATE KEY-----\nMIGTAgEHIHMJKJyqGSM32AgEGC..."
 })
 ```
 
@@ -98,17 +101,16 @@ Retrieve the "code" query parameter from the URL string when the user user redir
 
 ```javascript
 // Example: http://localhost:3000/auth/apple/callback?code=somecode&state=123
-app.get("/auth/apple/callback", (req, res) => {
-  const code = req.query.code;
-  const state = req.query.state;
+export default {
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+    
+    const state = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    // Continues in next examples...
 
-  // This depends how you implemented the storing "state"
-  if (req.session.state && req.session.state !== state) {
-    throw new Error("Missing or invalid state");
   }
-
-  // Continues in next examples...
-});
+} satisfies ExportedHandler;
 ```
 
 In the case of iOS the native-app sends the `code` to a custom endpoint on your app. Make sure that iOS app also securily passes along the `fullName` and `idToken` . From the backend you won't have access to the `fullName` and `idToken` can be used to verify the user without making `appleSignIn.getAuthorization()` call.
@@ -207,53 +209,8 @@ The only other library I'd consider feature-full and ready to use besides this o
 | Tools for easier contributors | ✅ (typescript, eslint, prettier, jest)                                                                                                     | ✅ (flow, eslint, prettier, jest)                                                                                                         | ❌                                                                                                                          | ❌                                                                                  |
 | Stats                         | [![NPM](https://nodei.co/npm/apple-sign-in-rest.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/apple-sign-in-rest/) | [![NPM](https://nodei.co/npm/apple-signin-auth.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/apple-signin-auth/) | [![NPM](https://nodei.co/npm/apple-auth.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/apple-auth/) | [![NPM](https://nodei.co/npm/apple-signin.png)](https://nodei.co/npm/apple-signin/) |
 
-## Contributing
-
-Pull requests are always welcomed. 🙇🏻‍♂️ Please open an issue first to discuss what you would like to change.
-
-Package has a pre-commit git hook that does typechecking, linting, unit testing and doc building (if see source code changes).
-
-### Helper scripts
-
-```bash
-# Build library, will create a library in /lib folder
-npm run build
-
-# Run unit tests
-npm run test
-npm run test:watch # watch mode
-
-# Run typecheck and linter
-npm run lint
-
-# Attempts to fix all formatting and linting issues
-npm run format
-
-# Build docs
-npm run docs
-
-# Inspect documentation localy visit http://127.0.0.1:8080
-npm run docs:serve
-
-# By default docs are automatically built and added on pre-commit hook,
-# if it sees staged changes to any /src files,
-# you can override the logic by forcing to build docs by passing environmental
-DOCS_FORCE=true git commit -m 'My awesome change'
-
-# You also skip automatically adding docs to commit
-DOCS_COMMIT=false git commit -m 'My awesome change'
-
-# Commit but ignore ship the git hooks
-git commit -m 'My awesome change' --no-verify
-```
-
 ## License
 
 [The MIT License](https://choosealicense.com/licenses/mit/)
 
 Copyright (c) 2020 Renārs Vilnis
-
-## Support
-
-If you have any questions or need help with integration, then you can contact me by email
-[renars.vilnis@gmail.com](renars.vilnis@gmail.com).
